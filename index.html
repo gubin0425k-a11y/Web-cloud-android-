@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <title>Web Android OS</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-tap-highlight-color: transparent; }
+    html, body { width: 100%; height: 100dvh; overflow: hidden; background: #0f172a; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; touch-action: none; }
+    #device-wrapper { width: 100%; height: 100dvh; display: flex; justify-content: center; align-items: center; }
+    #phone-screen {
+      width: 100%; height: 100dvh; position: relative; overflow: hidden;
+      background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 50%, #9333ea 100%);
+      color: #fff; display: flex; flex-direction: column; justify-content: space-between;
+    }
+    @media (min-width: 520px) {
+      #phone-screen {
+        width: 390px; height: 820px; border-radius: 42px;
+        border: 10px solid #1e293b; box-shadow: 0 25px 60px rgba(0,0,0,0.6);
+      }
+    }
+    /* 상태바 */
+    #status-bar {
+      height: 36px; padding: 0 20px; display: flex; justify-content: space-between; align-items: center;
+      font-size: 13px; font-weight: 600; z-index: 50; background: rgba(0,0,0,0.15);
+    }
+    /* 잠금화면 */
+    #lock-screen {
+      position: absolute; inset: 0; z-index: 40;
+      background: rgba(15, 23, 42, 0.55); backdrop-filter: blur(18px);
+      display: flex; flex-direction: column; justify-content: space-between; align-items: center;
+      padding: 80px 20px 50px; transition: transform 0.35s ease, opacity 0.35s ease;
+    }
+    #lock-screen.unlocked { transform: translateY(-100%); opacity: 0; pointer-events: none; }
+    .lock-time { font-size: 64px; font-weight: 200; letter-spacing: -2px; }
+    .lock-date { font-size: 16px; opacity: 0.85; margin-top: 4px; }
+    .unlock-btn {
+      padding: 14px 28px; border-radius: 999px; background: rgba(255,255,255,0.2);
+      border: 1px solid rgba(255,255,255,0.35); color: #fff; font-size: 15px; cursor: pointer;
+    }
+    /* 홈 화면 */
+    #home-screen { flex: 1; padding: 24px 20px; display: flex; flex-direction: column; justify-content: space-between; }
+    .clock-widget { text-align: center; margin-top: 10px; }
+    .clock-widget h1 { font-size: 48px; font-weight: 300; }
+    .search-pill {
+      margin: 18px auto; width: 92%; height: 46px; border-radius: 24px;
+      background: rgba(255,255,255,0.9); color: #334155; display: flex; align-items: center;
+      padding: 0 18px; font-size: 14px; font-weight: 500; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    .app-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px 10px; margin-bottom: 16px; }
+    .app-item { display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; }
+    .app-icon {
+      width: 56px; height: 56px; border-radius: 18px; display: flex; justify-content: center; align-items: center;
+      font-size: 26px; box-shadow: 0 6px 15px rgba(0,0,0,0.2); transition: transform 0.12s;
+    }
+    .app-item:active .app-icon { transform: scale(0.9); }
+    .app-label { font-size: 12px; text-shadow: 0 1px 3px rgba(0,0,0,0.5); }
+    /* 앱 실행 창 */
+    #app-window {
+      position: absolute; top: 36px; left: 0; right: 0; bottom: 48px; z-index: 30;
+      background: #ffffff; color: #0f172a; display: none; flex-direction: column;
+    }
+    #app-window.active { display: flex; }
+    .app-header {
+      height: 48px; padding: 0 16px; background: #f1f5f9; border-bottom: 1px solid #e2e8f0;
+      display: flex; align-items: center; justify-content: space-between; font-weight: 600;
+    }
+    .app-body { flex: 1; overflow: auto; display: flex; flex-direction: column; }
+    /* 하단 내비게이션 바 */
+    #nav-bar {
+      height: 48px; background: rgba(0,0,0,0.35); backdrop-filter: blur(10px);
+      display: flex; justify-content: space-around; align-items: center; z-index: 50;
+    }
+    .nav-btn { color: #fff; font-size: 18px; padding: 10px 26px; cursor: pointer; opacity: 0.9; }
+    /* 내부 앱 스타일 */
+    .browser-bar { display: flex; gap: 6px; padding: 8px; background: #e2e8f0; }
+    .browser-bar input { flex: 1; padding: 8px 12px; border-radius: 20px; border: none; font-size: 14px; }
+    .browser-bar button { padding: 0 14px; border-radius: 20px; border: none; background: #2563eb; color: #fff; }
+    iframe { flex: 1; border: none; width: 100%; }
+    .term-box { flex: 1; background: #090d16; color: #22c55e; font-family: monospace; padding: 12px; font-size: 13px; overflow-y: auto; }
+    .term-input-row { display: flex; background: #090d16; padding: 8px 12px; border-top: 1px solid #1e293b; }
+    .term-input-row input { flex: 1; background: transparent; border: none; color: #22c55e; font-family: monospace; outline: none; }
+    .calc-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 16px; flex: 1; }
+    .calc-btn { border: none; border-radius: 14px; font-size: 20px; background: #f1f5f9; font-weight: 600; cursor: pointer; }
+    .calc-btn.op { background: #dbeafe; color: #1d4ed8; }
+    #calc-display { padding: 24px 20px; text-align: right; font-size: 36px; font-weight: 300; background: #f8fafc; }
+    textarea.note-area { flex: 1; border: none; padding: 16px; font-size: 15px; resize: none; outline: none; }
+  </style>
+</head>
+<body>
+  <div id="device-wrapper">
+    <div id="phone-screen">
+      <!-- 상단 상태바 -->
+      <div id="status-bar">
+        <span id="sb-time">12:00</span>
+        <span>5G &nbsp; 🔋 100%</span>
+      </div>
+
+      <!-- 잠금화면 -->
+      <div id="lock-screen" onclick="unlockPhone()">
+        <div style="text-align:center;">
+          <div class="lock-time" id="ls-time">12:00</div>
+          <div class="lock-date" id="ls-date">Android Web OS</div>
+        </div>
+        <button class="unlock-btn">터치하여 잠금 해제 🔓</button>
+      </div>
+
+      <!-- 홈 화면 -->
+      <div id="home-screen">
+        <div>
+          <div class="clock-widget">
+            <h1 id="hm-time">12:00</h1>
+            <p style="font-size:13px; opacity:0.85;">서버 없는 클라우드 웹 Android 15</p>
+          </div>
+          <div class="search-pill" onclick="openApp('browser')">🔍 &nbsp;웹 검색 또는 URL 입력...</div>
+        </div>
+
+        <div class="app-grid">
+          <div class="app-item" onclick="openApp('browser')">
+            <div class="app-icon" style="background:#fff;">🌐</div>
+            <span class="app-label">크롬</span>
+          </div>
+          <div class="app-item" onclick="openApp('terminal')">
+            <div class="app-icon" style="background:#1e293b;">💻</div>
+            <span class="app-label">터미널</span>
+          </div>
+          <div class="app-item" onclick="openApp('calc')">
+            <div class="app-icon" style="background:#3b82f6;">🧮</div>
+            <span class="app-label">계산기</span>
+          </div>
+          <div class="app-item" onclick="openApp('notes')">
+            <div class="app-icon" style="background:#f59e0b;">📝</div>
+            <span class="app-label">메모장</span>
+          </div>
+          <div class="app-item" onclick="openApp('settings')">
+            <div class="app-icon" style="background:#64748b;">⚙️</div>
+            <span class="app-label">설정</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 앱 실행 컨테이너 -->
+      <div id="app-window">
+        <div class="app-header">
+          <span id="app-title">앱</span>
+          <span onclick="closeApp()" style="cursor:pointer; color:#ef4444; font-size:14px;">닫기 ✕</span>
+        </div>
+        <div class="app-body" id="app-body"></div>
+      </div>
+
+      <!-- 하단 내비게이션 바 -->
+      <div id="nav-bar">
+        <div class="nav-btn" onclick="closeApp()">◁</div>
+        <div class="nav-btn" onclick="closeApp()">○</div>
+        <div class="nav-btn" onclick="lockPhone()">□</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function updateClock() {
+      const now = new Date();
+      const t = now.toTimeString().slice(0, 5);
+      document.getElementById('sb-time').textContent = t;
+      document.getElementById('ls-time').textContent = t;
+      document.getElementById('hm-time').textContent = t;
+    }
+    setInterval(updateClock, 1000); updateClock();
+
+    function unlockPhone() { document.getElementById('lock-screen').classList.add('unlocked'); }
+    function lockPhone() { closeApp(); document.getElementById('lock-screen').classList.remove('unlocked'); }
+    function closeApp() { document.getElementById('app-window').classList.remove('active'); }
+
+    function openApp(type) {
+      const win = document.getElementById('app-window');
+      const title = document.getElementById('app-title');
+      const body = document.getElementById('app-body');
+      win.classList.add('active');
+
+      if (type === 'browser') {
+        title.textContent = 'Chrome 브라우저';
+        body.innerHTML = `
+          <div class="browser-bar">
+            <input id="url-in" value="https://wikipedia.org" placeholder="https:// 주소 입력" />
+            <button onclick="document.getElementById('web-frame').src = document.getElementById('url-in').value">이동</button>
+          </div>
+          <iframe id="web-frame" src="https://wikipedia.org"></iframe>`;
+      } else if (type === 'terminal') {
+        title.textContent = 'Android Shell (sh)';
+        body.innerHTML = `
+          <div class="term-box" id="term-out">Android 15 WebOS Kernel v6.1<br>도움말을 보려면 'help'를 입력하세요.<br><br></div>
+          <div class="term-input-row">
+            <span style="color:#22c55e; margin-right:6px;">$</span>
+            <input id="term-in" placeholder="명령어 입력..." onkeydown="if(event.key==='Enter') runCmd(this)" />
+          </div>`;
+      } else if (type === 'calc') {
+        title.textContent = '계산기';
+        body.innerHTML = `
+          <div id="calc-display">0</div>
+          <div class="calc-grid">
